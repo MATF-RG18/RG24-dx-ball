@@ -12,6 +12,8 @@ static void initialization(void);   //inicijalizacija promenljivih
 
 static double Xsphere,Ysphere;  //Koordinate x,y za kuglu
 static double Xcylinder;        //Koordinata x za valjak
+static int *targets = NULL;     //Niz koji cuva postojanje/nepostojanje meta
+static double *targetsCentar = NULL;    //Niz koji cuva pozicije (x,y) meta
 
 int main(int argc, char **argv){
     
@@ -54,6 +56,32 @@ void initialization(){
     
     //Pocetna koordinata x valjka
     Xcylinder = 0;
+    
+    //Alokacija memorije za niz i 
+    //Postavljanje svih elemenata niza na 1 (koje oznacava postojanje mete)
+    if( (targets = (int *) malloc(sizeof(int)*25)) == NULL ){
+        exit(0);
+    }
+
+    for(int i=0; i<25; i++)
+        targets[i] = 1;
+
+    //Alokacija memorije za niz i 
+    //Postavljanje pozicije svih meta
+    if( (targetsCentar = (double *) malloc(sizeof(double)*50)) == NULL ){
+        exit(0);
+    }
+    
+    int k=0;
+    for(double j=5; j>0; j--){
+        for(double i=-j+1; i<j; i+=0.5){
+            if(k%2)
+                targetsCentar[k] = j;
+            else
+                targetsCentar[k] = i;
+            k++;
+        }
+    }
 }
 
 
@@ -68,12 +96,26 @@ static void on_reshape(int width, int height){
     gluPerspective(60, (float) width / height, 1, 15);
 }
 
-
+//''Odaziv na odredjene tastere na ekranu''
 static void on_keyboard(unsigned char key, int x, int y){
     switch(key){
         case 27:        //Izlaz iz programa na 'esc'
             exit(0);
             break;
+    }
+}
+
+//Crtanje meta
+void draw_target(){
+    
+    for(int i=0; i<50; i+=2){
+            
+        if( targets[i/2] == 1 ){
+            glPushMatrix();
+                glTranslatef(targetsCentar[i],targetsCentar[i+1],0);
+                glutSolidCube(0.5);
+            glPopMatrix();
+        }
     }
 }
 
@@ -138,6 +180,38 @@ static void on_display(void){
     
     glLightfv(GL_LIGHT0, GL_POSITION, light_position);
     
+    //Crtanje plavog okvira
+    glPushMatrix();
+        ambient_coeffs[0] = 0.3;
+        ambient_coeffs[1] = 0.3;
+        ambient_coeffs[2] = 0.7;
+        diffuse_coeffs[0] = 0.2;
+        diffuse_coeffs[1] = 0.4;
+        diffuse_coeffs[2] = 0.6;
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+        glBegin(GL_QUADS);
+            glVertex3f(5.75,-5.75,0);
+            glVertex3f(5.6,-5.75,0);
+            glVertex3f(5.6,5.75,0);
+            glVertex3f(5.75,5.75,0);
+        glEnd();
+    
+        glBegin(GL_QUADS);
+            glVertex3f(5.6,5.75,0);
+            glVertex3f(5.6,5.6,0);
+            glVertex3f(-5.75,5.6,0);
+            glVertex3f(-5.75,5.75,0);
+        glEnd();
+        
+        glBegin(GL_QUADS);
+            glVertex3f(-5.75,5.6,0);
+            glVertex3f(-5.6,5.6,0);
+            glVertex3f(-5.6,-5.75,0);
+            glVertex3f(-5.75,-5.75,0);
+        glEnd();
+    glPopMatrix();
+    
     //Crtanje zelene kugle
     glPushMatrix();                                         
         ambient_coeffs[0] = 0.3;
@@ -171,6 +245,22 @@ static void on_display(void){
     
     glPopMatrix();
     
-
+    //Crtanje meta (kockica)
+    glPushMatrix();
+    
+        ambient_coeffs[0] = 0.2;
+        ambient_coeffs[1] = 0.2;
+        ambient_coeffs[2] = 0.6;
+        diffuse_coeffs[0] = 0.2;
+        diffuse_coeffs[1] = 0.2;
+        diffuse_coeffs[2] = 0.6;
+    
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+    
+        draw_target();
+        
+    glPopMatrix();
+    
     glutSwapBuffers();
 }
