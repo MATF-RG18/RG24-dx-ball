@@ -1,19 +1,25 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
+#include <time.h>
 #include <GL/glut.h>
 
 //Deklaracija callback funkcija
 static void on_keyboard(unsigned char key, int x, int y);
 static void on_reshape(int width, int height);
 static void on_display(void);
+static void on_timer(int);
 static void initialization(void);   //inicijalizacija promenljivih
 
 #define PI (3*3.1415926535)     //Konstanta
 
+static int animation_ongoing;   //Animacija pokrenuta ili ne;
 static double Xsphere,Ysphere;  //Koordinate x,y za kuglu
 static double Xcylinder;        //Koordinata x za valjak
 static int *targets = NULL;     //Niz koji cuva postojanje/nepostojanje meta
 static double *targetsCentar = NULL;    //Niz koji cuva pozicije (x,y) meta
+static double Xsphere1,Ysphere1,Xsphere0,Ysphere0;  //Prethodne i trenutne koordinate kugle
+static double move;         //Pomeraj
 
 int main(int argc, char **argv){
     
@@ -46,13 +52,31 @@ int main(int argc, char **argv){
 void initialization(){
     
     //Podesavanje pozadine i SMOOTH secenja
-    glClearColor(0.5, 0.5, 0.5, 0.5);
+    glClearColor(0.3,0.3,0.3,0.3);
     glEnable(GL_DEPTH_TEST);
     glShadeModel(GL_SMOOTH);
     
-    //Pocetne koordinate kugle
-    Xsphere = 0;
-    Ysphere = -3.9;
+    animation_ongoing = 0;
+    move = 0.15;
+    
+    //Pocetne pozicije kugle
+    Xsphere0 = -0.1;
+    Ysphere0 = -4.1;
+    
+    //Random broj koji odredjuje na koju stranu ce kugla krenuti
+    srand(time(NULL));
+    double randomBroj = rand()%2;
+    if(randomBroj < 1)
+        Xsphere1 = 0;
+    else
+        Xsphere1 = -0.2;
+    
+    //Sledeca y koordinata kugle
+    Ysphere1 = -4;
+    
+    //Trenutne koordinate kugle
+    Xsphere = Xsphere1;
+    Ysphere = Ysphere1;
     
     //Pocetna koordinata x valjka
     Xcylinder = 0;
@@ -102,8 +126,115 @@ static void on_keyboard(unsigned char key, int x, int y){
         case 27:        //Izlaz iz programa na 'esc'
             exit(0);
             break;
+            
+        case 'g':       //Pokretanje programa
+        case 'G':
+            if (!animation_ongoing) {
+                glutTimerFunc(50, on_timer, 0);
+                animation_ongoing = 1;
+            }
+            break;
+
+        case 's':       //Stopiranje
+        case 'S':
+            animation_ongoing = 0;
+            break;
+            
+        case 'r':       //Restartovanje programa i inicijalizacija koordinata kugle i cilindra
+        case 'R':
+            animation_ongoing = 0;
+            Xsphere = 0;
+            Ysphere = -4;
+            Xcylinder = 0;
+            break;
     }
 }
+
+
+static void on_timer(int value){
+    
+    if (value != 0)
+        return;
+    
+    //Ako je kugla dosla do desne ivice odozdo
+    if( Xsphere > 5.5 && Ysphere0 <= Ysphere1 ){
+        Xsphere -= move;
+        Ysphere += move;
+    }
+    //Ako je kugla dosla do desne ivice odozgo
+    else if( Xsphere > 5.5 && Ysphere0 >= Ysphere1 ){
+        Xsphere -= move;
+        Ysphere -= move;
+    }
+    //Ako je kugla dosla do leve ivice odozgo
+    else if( Xsphere < -5.5 && Ysphere0 >= Ysphere1 ){
+        Xsphere += move;
+        Ysphere -= move;
+    }
+    //Ako je kugla dosla do leve ivice odozdo
+    else if( Xsphere < -5.5 && Ysphere0 <= Ysphere1 ){
+        Xsphere += move;
+        Ysphere += move;
+    }
+    //Ako je kugla dosla do gornje ivice sa desne strane
+    else if( Ysphere > 5.5 && Xsphere0 >= Xsphere1 ){
+        Xsphere -= move;
+        Ysphere -= move;
+    }
+    //Ako je kugla dosla do gornje ivice sa leve strane
+    else if( Ysphere > 5.5 && Xsphere0 <= Xsphere1 ){
+        Xsphere += move;
+        Ysphere -= move;
+    }
+    //Ako je kugla udarila u valjak sa desne strane
+    else if( Ysphere < -3.9 && Xsphere0 >= Xsphere1 && ( Xsphere <= Xcylinder + 2.6  && Xsphere >= Xcylinder - 2.6 ) ){
+        Xsphere -= move;
+        Ysphere += move;
+    }
+    //Ako je kugla udarila u valjak sa leve strane
+    else if( Ysphere < -3.9 && Xsphere0 <= Xsphere1 && ( Xsphere <= Xcylinder + 2.6  && Xsphere >= Xcylinder - 2.6 ) ){
+        Xsphere += move;
+        Ysphere += move;
+    }
+    //Prirodan nastavak kretanja kugle kad ne udari o ivice
+    else if( Xsphere0 >= Xsphere1 && Ysphere0 >= Ysphere1){
+        Xsphere -= move;
+        Ysphere -= move;
+    }
+    else if( Xsphere0 <= Xsphere1 && Ysphere0 >= Ysphere1){
+        Xsphere += move;
+        Ysphere -= move;
+    }
+    else if( Xsphere0 >= Xsphere1 && Ysphere0 <= Ysphere1){
+        Xsphere -= move;
+        Ysphere += move;
+    }
+    else if( Xsphere0 <= Xsphere1 && Ysphere0 <= Ysphere1){
+        Xsphere += move;
+        Ysphere += move;
+    }
+    
+    
+    //Ako je kugla promasila valjak i otisla ispod, prekida se akcija
+    if( Ysphere <= -5 ){                                         /* GAME OVER */
+        
+        animation_ongoing = 0;
+    }                                                           
+        
+    //Ponovna postavka koordinata kugle
+    Xsphere0 = Xsphere1;
+    Ysphere0 = Ysphere1;
+    Xsphere1 = Xsphere;
+    Ysphere1 = Ysphere;
+    
+    //Ponovno iscrtavanje
+    glutPostRedisplay();
+
+    //Nastaviti sa animacijom ako je animation_ongoing=1
+    if (animation_ongoing)
+        glutTimerFunc(5, on_timer, 0);
+}
+
 
 //Crtanje meta
 void draw_target(){
