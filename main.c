@@ -9,6 +9,8 @@ static void on_keyboard(unsigned char key, int x, int y);
 static void on_reshape(int width, int height);
 static void on_display(void);
 static void on_timer(int);
+static void on_mouse(int button, int state, int x, int y);
+static void on_motion(int x, int y);
 static void initialization(void);   //inicijalizacija promenljivih
 
 #define PI (3*3.1415926535)     //Konstanta
@@ -20,6 +22,13 @@ static int *targets = NULL;     //Niz koji cuva postojanje/nepostojanje meta
 static double *targetsCentar = NULL;    //Niz koji cuva pozicije (x,y) meta
 static double Xsphere1,Ysphere1,Xsphere0,Ysphere0;  //Prethodne i trenutne koordinate kugle
 static double move;         //Pomeraj
+static int mouse_x, mouse_y;    //pozicija misa
+static double nivo;         //Nivo do kog se stiglo
+static int life;            //Broj preostalih zivota
+static int result;          //Trenutni rezultat
+//Pobeda i poraz
+static int lose;
+static int win;
 
 int main(int argc, char **argv){
     
@@ -36,10 +45,18 @@ int main(int argc, char **argv){
     glutKeyboardFunc(on_keyboard);
     glutReshapeFunc(on_reshape);
     glutDisplayFunc(on_display);
+    glutMouseFunc(on_mouse);
+    glutMotionFunc(on_motion);
+    
+    //Pocetne vrednosti nivoa, preostalih zivota i rezultata
+    nivo = 3;
+    life = 2;
+    result = 0;
     
     //Pozivanje funkcije inicijalizacije
     initialization();
     
+    //Svetlo
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
 
@@ -57,7 +74,13 @@ void initialization(){
     glShadeModel(GL_SMOOTH);
     
     animation_ongoing = 0;
-    move = 0.15;
+    move = 0.15;    //pomeraj fiksni
+    
+    mouse_x = 0;    //Pocetne pozicije misa
+    mouse_y = 0;
+    
+    lose = 1;
+    win = 0;
     
     //Pocetne pozicije kugle
     Xsphere0 = -0.1;
@@ -83,21 +106,21 @@ void initialization(){
     
     //Alokacija memorije za niz i 
     //Postavljanje svih elemenata niza na 1 (koje oznacava postojanje mete)
-    if( (targets = (int *) malloc(sizeof(int)*25)) == NULL ){
+    if( (targets = (int *) malloc(sizeof(int)*nivo*nivo)) == NULL ){
         exit(0);
     }
 
-    for(int i=0; i<25; i++)
+    for(int i=0; i<nivo*nivo; i++)
         targets[i] = 1;
 
     //Alokacija memorije za niz i 
     //Postavljanje pozicije svih meta
-    if( (targetsCentar = (double *) malloc(sizeof(double)*50)) == NULL ){
+    if( (targetsCentar = (double *) malloc(sizeof(double)*2*nivo*nivo)) == NULL ){
         exit(0);
     }
     
     int k=0;
-    for(double j=5; j>0; j--){
+    for(double j=nivo; j>0; j--){
         for(double i=-j+1; i<j; i+=0.5){
             if(k%2)
                 targetsCentar[k] = j;
@@ -129,7 +152,7 @@ static void on_keyboard(unsigned char key, int x, int y){
             
         case 'g':       //Pokretanje programa
         case 'G':
-            if (!animation_ongoing) {
+            if (!animation_ongoing && lose && !win) {
                 glutTimerFunc(50, on_timer, 0);
                 animation_ongoing = 1;
             }
@@ -146,6 +169,18 @@ static void on_keyboard(unsigned char key, int x, int y){
             Xsphere = 0;
             Ysphere = -4;
             Xcylinder = 0;
+            break;
+        //Ukoliko izgubimo (odnosno nemamo vise zivota), mozemo zapoceti igru ponovo pritiskom na n(N) a zatim na g(G) kako bi igra ponovo krenula
+        case 'n':
+        case 'N':
+            if(life == 0){
+                life = 2;
+                nivo = 3;
+                result = 0;
+                lose = 1;
+                win = 0;
+                initialization();
+            }
             break;
     }
 }
@@ -208,7 +243,7 @@ static void on_timer(int value){
     }
     else{
         //Provera da li je kugla udarila u metu i njeno ponasanje ako jeste
-        for(int i=0; i<50; i+=2){
+        for(int i=0; i<2*nivo*nivo; i+=2){
             
             //Ako meta postoji
             if( targets[i/2] ){
@@ -222,6 +257,7 @@ static void on_timer(int value){
                     double y1 = fabs(targetsCentar[i+1] - 0.4 - Ysphere0);
                     double y2 = fabs(targetsCentar[i+1] + 0.4 - Ysphere0);
                     
+                    //Leva ivica
                     if( x1 < x2 && x1 < y1 && x1 < y2 ){
                         Xsphere -= move;
                         if( Ysphere0 >= Ysphere1 )
@@ -229,6 +265,7 @@ static void on_timer(int value){
                         else
                             Ysphere -= move;
                     }
+                    //Desna
                     else if( x2 < x1 && x2 < y1 && x2 < y2 ){
                         Xsphere += move;
                         if( Ysphere0 >= Ysphere1 )
@@ -236,6 +273,7 @@ static void on_timer(int value){
                         else
                             Ysphere += move;
                     }
+                    //Donja
                     else if( y1 < x1 && y1 < x2 && y1 < y2 ){
                         Ysphere -= move;
                         if( Xsphere0 >= Xsphere1 )
@@ -243,10 +281,11 @@ static void on_timer(int value){
                         else
                             Xsphere += move;
                     }
+                    //Gornja
                     else{
                         Ysphere += move;
                         if( Xsphere0 >= Xsphere1 )
-                            Xsphere += move;
+                            Xsphere -= move;
                         else
                             Xsphere += move;
                     }
@@ -254,6 +293,14 @@ static void on_timer(int value){
                     //Unistavamo metu u koju je udarila kugla
                     targets[i/2] = 0;
                     indikator = 0;
+                    
+                    //Povecavamo rezultat i proglasavamo pobedu ako smo sve mete pogodili
+                    result++;
+                    
+                    if(result == 50){
+                        animation_ongoing = 0;
+                        win = 1;
+                    }
                 }
             }
         }
@@ -283,16 +330,46 @@ static void on_timer(int value){
     
     
     //Ako je kugla promasila valjak i otisla ispod, prekida se akcija
-    if( Ysphere <= -5 ){                                         /* GAME OVER */
+    if( Ysphere <= -5 ){              /* GAME OVER */
         
-        animation_ongoing = 0;
-    }                                                           
+        life--;
+        
+        if(life != 0)
+            on_keyboard('r',0,0);
+        else{
+            animation_ongoing = 0;
+            lose = 0;
+        }
+    }                                                            
         
     //Ponovna postavka koordinata kugle
     Xsphere0 = Xsphere1;
     Ysphere0 = Ysphere1;
     Xsphere1 = Xsphere;
     Ysphere1 = Ysphere;
+    
+    //Provera da li su nam se mete spustile do valjaka, ako jesu -> kraj igre
+    for(int i=1; i<2*nivo*nivo; i+=2){
+        if( targets[(i-1)/2] && targetsCentar[i] <= -3.9 ){       /* GAME OVER */
+            animation_ongoing = 0;
+            life = 0;
+            lose = 0;
+        }
+                                                            
+        //Pomeranje meta na dole
+        targetsCentar[i] -= nivo * 0.0004;
+    }
+    
+    //Proveravamo da li postoji jos meta na odredjenom nivou, Ukoliko smo sve mete pogodili prelazimo na sledeci nivo i ponovo inicijalizacijalizujemo
+    for(int i=0; i<nivo*nivo; i++){
+        if(targets[i] == 1)
+            break;
+        
+        if( (i == nivo*nivo-1) && !win){
+            nivo++;
+            initialization();
+        }
+    }
     
     //Ponovno iscrtavanje
     glutPostRedisplay();
@@ -306,7 +383,7 @@ static void on_timer(int value){
 //Crtanje meta
 void draw_target(){
     
-    for(int i=0; i<50; i+=2){
+    for(int i=0; i<2*nivo*nivo; i+=2){
             
         if( targets[i/2] == 1 ){
             glPushMatrix();
@@ -315,6 +392,38 @@ void draw_target(){
             glPopMatrix();
         }
     }
+}
+
+
+static void on_mouse(int button, int state, int x, int y)
+{
+    /* Pamti se pozicija pokazivaca misa. */
+    mouse_x = x;
+    mouse_y = y;
+}
+
+static void on_motion(int x, int y)
+{
+    /* Promena pozicije pokazivaca misa. */
+    int delta_x;
+
+    /* Izracunava se promena pozicije pokazivaca misa. */
+    delta_x = x - mouse_x;
+
+    /* Pamti se nova pozicija pokazivaca misa. */
+    mouse_x = x;
+
+    if(delta_x > 0){
+        if( Xcylinder < 3 )
+            Xcylinder += delta_x * 0.01;
+    }
+    else if( delta_x < 0 ){
+        if( Xcylinder > -3 )
+            Xcylinder += delta_x * 0.01;
+    }
+        
+    /* Forsira se ponovno iscrtavanje prozora. */
+    glutPostRedisplay();
 }
 
 
@@ -446,18 +555,38 @@ static void on_display(void){
     //Crtanje meta (kockica)
     glPushMatrix();
     
-        ambient_coeffs[0] = 0.2;
-        ambient_coeffs[1] = 0.2;
-        ambient_coeffs[2] = 0.6;
-        diffuse_coeffs[0] = 0.2;
-        diffuse_coeffs[1] = 0.2;
-        diffuse_coeffs[2] = 0.6;
+    if(nivo == 3){
+        ambient_coeffs[0] = 0.05*nivo;
+        ambient_coeffs[1] = 0.05*nivo;
+        ambient_coeffs[2] = 0.2*nivo;
+        diffuse_coeffs[0] = 0.05*nivo;
+        diffuse_coeffs[1] = 0.05*nivo;
+        diffuse_coeffs[2] = 0.2*nivo;
+    }
+    else if(nivo == 4){
+        ambient_coeffs[0] = 0.2*nivo;
+        ambient_coeffs[1] = 0.05*nivo;
+        ambient_coeffs[2] = 0.05*nivo;
+        diffuse_coeffs[0] = 0.2*nivo;
+        diffuse_coeffs[1] = 0.05*nivo;
+        diffuse_coeffs[2] = 0.05*nivo;
+    }
+    else{
+        ambient_coeffs[0] = 0.05*nivo;
+        ambient_coeffs[1] = 0.2*nivo;
+        ambient_coeffs[2] = 0.05*nivo;
+        diffuse_coeffs[0] = 0.05*nivo;
+        diffuse_coeffs[1] = 0.2*nivo;
+        diffuse_coeffs[2] = 0.05*nivo;
+    }
     
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
     
-        draw_target();
-        
+    glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+    
+    
+    draw_target();
+    
     glPopMatrix();
     
     glutSwapBuffers();
