@@ -156,62 +156,129 @@ static void on_timer(int value){
     if (value != 0)
         return;
     
+    int indikator = 1;
+    
     //Ako je kugla dosla do desne ivice odozdo
     if( Xsphere > 5.5 && Ysphere0 <= Ysphere1 ){
         Xsphere -= move;
         Ysphere += move;
+        indikator = 0;
     }
     //Ako je kugla dosla do desne ivice odozgo
     else if( Xsphere > 5.5 && Ysphere0 >= Ysphere1 ){
         Xsphere -= move;
         Ysphere -= move;
+        indikator = 0;
     }
     //Ako je kugla dosla do leve ivice odozgo
     else if( Xsphere < -5.5 && Ysphere0 >= Ysphere1 ){
         Xsphere += move;
         Ysphere -= move;
+        indikator = 0;
     }
     //Ako je kugla dosla do leve ivice odozdo
     else if( Xsphere < -5.5 && Ysphere0 <= Ysphere1 ){
         Xsphere += move;
         Ysphere += move;
+        indikator = 0;
     }
     //Ako je kugla dosla do gornje ivice sa desne strane
     else if( Ysphere > 5.5 && Xsphere0 >= Xsphere1 ){
         Xsphere -= move;
         Ysphere -= move;
+        indikator = 0;
     }
     //Ako je kugla dosla do gornje ivice sa leve strane
     else if( Ysphere > 5.5 && Xsphere0 <= Xsphere1 ){
         Xsphere += move;
         Ysphere -= move;
+        indikator = 0;
     }
     //Ako je kugla udarila u valjak sa desne strane
     else if( Ysphere < -3.9 && Xsphere0 >= Xsphere1 && ( Xsphere <= Xcylinder + 2.6  && Xsphere >= Xcylinder - 2.6 ) ){
         Xsphere -= move;
         Ysphere += move;
+        indikator = 0;
     }
     //Ako je kugla udarila u valjak sa leve strane
     else if( Ysphere < -3.9 && Xsphere0 <= Xsphere1 && ( Xsphere <= Xcylinder + 2.6  && Xsphere >= Xcylinder - 2.6 ) ){
         Xsphere += move;
         Ysphere += move;
+        indikator = 0;
     }
+    else{
+        //Provera da li je kugla udarila u metu i njeno ponasanje ako jeste
+        for(int i=0; i<50; i+=2){
+            
+            //Ako meta postoji
+            if( targets[i/2] ){
+                
+                if( Xsphere <= (targetsCentar[i]+0.4) && Xsphere >= (targetsCentar[i]-0.4) && 
+                           Ysphere >= (targetsCentar[i+1]-0.4) && Ysphere <= (targetsCentar[i+1]+0.4) ){
+                    
+                    //Provera da li je udarila sa leve, desne, gornje ili donje ivice
+                    double x1 = fabs(targetsCentar[i] - 0.4 - Xsphere0);
+                    double x2 = fabs(targetsCentar[i] + 0.4 - Xsphere0);
+                    double y1 = fabs(targetsCentar[i+1] - 0.4 - Ysphere0);
+                    double y2 = fabs(targetsCentar[i+1] + 0.4 - Ysphere0);
+                    
+                    if( x1 < x2 && x1 < y1 && x1 < y2 ){
+                        Xsphere -= move;
+                        if( Ysphere0 >= Ysphere1 )
+                            Ysphere += move;
+                        else
+                            Ysphere -= move;
+                    }
+                    else if( x2 < x1 && x2 < y1 && x2 < y2 ){
+                        Xsphere += move;
+                        if( Ysphere0 >= Ysphere1 )
+                            Ysphere -= move;
+                        else
+                            Ysphere += move;
+                    }
+                    else if( y1 < x1 && y1 < x2 && y1 < y2 ){
+                        Ysphere -= move;
+                        if( Xsphere0 >= Xsphere1 )
+                            Xsphere -= move;
+                        else
+                            Xsphere += move;
+                    }
+                    else{
+                        Ysphere += move;
+                        if( Xsphere0 >= Xsphere1 )
+                            Xsphere += move;
+                        else
+                            Xsphere += move;
+                    }
+                    
+                    //Unistavamo metu u koju je udarila kugla
+                    targets[i/2] = 0;
+                    indikator = 0;
+                }
+            }
+        }
+    }
+    
+    
     //Prirodan nastavak kretanja kugle kad ne udari o ivice
-    else if( Xsphere0 >= Xsphere1 && Ysphere0 >= Ysphere1){
-        Xsphere -= move;
-        Ysphere -= move;
-    }
-    else if( Xsphere0 <= Xsphere1 && Ysphere0 >= Ysphere1){
-        Xsphere += move;
-        Ysphere -= move;
-    }
-    else if( Xsphere0 >= Xsphere1 && Ysphere0 <= Ysphere1){
-        Xsphere -= move;
-        Ysphere += move;
-    }
-    else if( Xsphere0 <= Xsphere1 && Ysphere0 <= Ysphere1){
-        Xsphere += move;
-        Ysphere += move;
+    if(indikator){
+        
+        if( Xsphere0 >= Xsphere1 && Ysphere0 >= Ysphere1){
+            Xsphere -= move;
+            Ysphere -= move;
+        }
+        else if( Xsphere0 <= Xsphere1 && Ysphere0 >= Ysphere1){
+            Xsphere += move;
+            Ysphere -= move;
+        }
+        else if( Xsphere0 >= Xsphere1 && Ysphere0 <= Ysphere1){
+            Xsphere -= move;
+            Ysphere += move;
+        }
+        else if( Xsphere0 <= Xsphere1 && Ysphere0 <= Ysphere1){
+            Xsphere += move;
+            Ysphere += move;
+        }
     }
     
     
